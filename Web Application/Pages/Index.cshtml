@@ -1,7 +1,7 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Coin Recognition";
+    ViewData["Title"] = "Coin Classification";
 }
 
 <head>
@@ -20,7 +20,7 @@
                 </div>
 
                 <div class="card shadow-lg p-4">
-                    <form method="post" enctype="multipart/form-data">
+                    <form id="uploadForm" method="post" enctype="multipart/form-data">
                         <div class="mb-3">
                             <input type="file" class="form-control" id="ImageFile" name="ImageFile" accept="image/*" />
                         </div>
@@ -33,19 +33,16 @@
                             </div>
                         </div>
                         <input type="hidden" id="croppedImageData" name="CroppedImageData" />
-                        <button type="submit" class="btn btn-success w-100">Recognize The Coin</button>
+                        <button type="submit" class="btn btn-success w-100" id="submitBtn">Classify The Coin</button>
                     </form>
                 </div>
 
-                @if (Model.JsonResponse != null)
-                {
-                    <div class="mt-4">
-                        <h2 class="h4">Processed Results:</h2>
-                        <div class="alert alert-info">
-                            <pre>@Model.JsonResponse</pre>
-                        </div>
+                <div id="result" class="mt-4" style="display: none;">
+                    <h2 class="h4">Processed Results:</h2>
+                    <div class="alert alert-info">
+                        <pre id="responseData"></pre>
                     </div>
-                }
+                </div>
             </div>
         </div>
     </div>
@@ -57,6 +54,9 @@
         const cropButton = document.getElementById('cropButton');
         const imageContainer = document.getElementById('imageContainer');
         const croppedImageDataInput = document.getElementById('croppedImageData');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultSection = document.getElementById('result');
+        const responseData = document.getElementById('responseData');
 
         imageFileInput.addEventListener('change', function(event) {
             const file = event.target.files[0];
@@ -67,6 +67,8 @@
                     imagePreview.style.display = 'block';
                     imageContainer.style.display = 'none';
 
+                    croppedImageDataInput.value = e.target.result;
+
                     if (cropper) {
                         cropper.destroy();
                     }
@@ -76,8 +78,13 @@
                     cropper = new Cropper(imageToCrop, {
                         aspectRatio: 1,
                         viewMode: 1,
-                        cropBoxResizable: true,
-                        cropBoxMovable: true,
+                        minWidth: 256,
+                        minHeight: 256,
+                        maxWidth: 4096,
+                        maxHeight: 4096,
+                        fillColor: '#000',
+                        imageSmoothingEnabled: true,
+                        imageSmoothingQuality: 'high'
                     });
                     imageContainer.style.display = 'block';
                     cropButton.style.display = 'inline-block';
@@ -89,17 +96,63 @@
         cropButton.addEventListener('click', function() {
             if (cropper) {
                 const canvas = cropper.getCroppedCanvas();
-
                 const croppedImageDataUrl = canvas.toDataURL();
 
                 croppedImageDataInput.value = croppedImageDataUrl;
-
                 imagePreview.src = croppedImageDataUrl;
                 imagePreview.classList.add('d-block');
             }
         });
+
+
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+
+
+            $.ajax({
+                url: '@Url.Page("Index")',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    console.log(response);
+
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Classify The Coin';
+
+                    resultSection.style.display = 'block';
+
+                    if (response.jsonResponse) {
+                        try {
+                            const parsedResponse = JSON.parse(response.jsonResponse);
+
+                            responseData.textContent = JSON.stringify(parsedResponse, null, 2);
+                        } catch (e) {
+                            responseData.textContent = 'Error parsing JSON response';
+                        }
+                    } else {
+                        responseData.textContent = 'No response data available';
+                    }
+                },
+                error: function(xhr, status, error) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Classify The Coin';
+
+                    resultSection.style.display = 'block';
+                    responseData.textContent = `Error: ${xhr.responseText || status || error}`;
+                }
+            });
+        });
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

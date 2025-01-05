@@ -27,7 +27,7 @@ public class IndexModel : PageModel
     {
     }
 
-    public async Task OnPostAsync()
+    public async Task<IActionResult> OnPostAsync()
     {
         if (ImageFile != null && ImageFile.Length > 0)
         {
@@ -53,12 +53,18 @@ public class IndexModel : PageModel
                 if (response.IsSuccessStatusCode)
                 {
                     JsonResponse = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine(JsonResponse);
                 }
                 else
                 {
                     JsonResponse = "Error processing the cropped image.";
+                    Console.WriteLine(JsonResponse);
                 }
             }
         }
+
+        return new JsonResult(new { JsonResponse = JsonResponse });
     }
+
+
 }
